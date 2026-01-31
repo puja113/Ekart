@@ -2,6 +2,7 @@ import { User } from "../models/userModel.js";
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { verifyEmail } from "../emailVerify/verifyEmail.js";
+import { Session } from "../models/sessionModel.js";
 
 export const register  = async (req, res)=>{
     try{
@@ -31,6 +32,7 @@ export const register  = async (req, res)=>{
        verifyEmail(token,email) //send email here
        newUser.token = token;
        await newUser.save();
+       console.log("SIGN SECRET:", process.env.SECRET_KEY)
        return res.status(201).json({
         success:true,
         message:"User register successfully",
@@ -131,3 +133,91 @@ export const reverify = async(req, res)=>{
 
   }
 }
+
+export const login = async(req, res)=>{
+  try{
+
+    const{email,password} =  req.body;
+    if(!email || !password){
+      return res.status(400).json({
+        success:false,
+        message:'All fields are required'
+      })
+    }
+    const existingUser = await User.findOne({email});
+
+    if(!existingUser){
+      return res.status(400).json({
+        success:false,
+        message:'User not exists'
+      })
+    }
+
+    const isPasswordValid =  await bcrypt.compare(password, existingUser.password)
+    if(!isPasswordValid){
+      return res.status(400).json({
+        success:false,
+        message:'Invalid credentials'
+      })
+    }
+
+    if(existingUser.isVerified === false){
+
+      return res.status(400).json({
+        success:false,
+        message:"Verify You account than login "
+      })
+    }
+
+     //generate token
+    const accessToken =  jwt.sign({id:existingUser._id} , process.env.SECRET_KEY , {expiresIn: '10d'});
+    const refreshToken =  jwt.sign({id:existingUser._id} , process.env.SECRET_KEY , {expiresIn: '10d'});
+    
+    existingUser.isLoggedin = true
+    await existingUser.save()
+    //check for existing user sesion
+    const existingSession =  await Session.findOne({userId: existingUser._id})
+    if(existingSession){
+      await Session.deleteOne({userId:existingUser._id})
+    }
+
+    //create session for usetr
+    await Session.create({userId:existingUser._id})
+    return res.status(200).json({
+      success:true,
+      message:`Welcome Back ${existingUser.firstName}`,
+      user: existingUser,
+      accessToken,
+      refreshToken
+    })
+
+  }catch(error){
+   return res.status(500).json({
+      success:false,
+      message:error.message
+    })
+  }
+}
+
+
+export const logout = async(req, res)=>{
+  try{
+
+    const userId = req.id
+    await Session.deleteMany({userId :userId}) // delete all session which is being creted when i m logged out
+    await User.findByIdAndUpdate(userId , {isLoggedin:false})
+
+    return res.status(200).json({
+      success:true,
+      message:'User Logged out successfully'
+    })
+
+
+  }catch(error){
+    return res.status(500).json({
+      success:false,
+      message:error.message
+    })
+  }
+}
+
