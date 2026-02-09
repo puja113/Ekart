@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
@@ -45,6 +45,8 @@ const Signup = () => {
       e.preventDefault()
       console.log(formData)
      try{
+
+      setLoading(true)
       const res = await axios.post(`http://127.0.0.1:8000/api/v1/user/register
       `,formData ,{
       headers: {
@@ -60,6 +62,9 @@ const Signup = () => {
          console.log(error)
          toast.error(error.response?.data?.message || "Something went wrong")
 
+     }
+     finally{
+      setLoading(false)
      }
   }
 
@@ -145,7 +150,7 @@ const Signup = () => {
       </CardContent>
       <CardFooter className="flex-col gap-2">
         <Button type="submit" className="w-full cursor-pointer bg-pink-600 hover:bg-pink-500" onClick = {submitHandler} >
-          SignUp
+         {loading ? <><Loader2 className='h-4 w-4 animate-spin mr-2'/>Please Wait</>:'SignUp'} 
         </Button>
         <p className='text-gray-700 text-sm'>Already have an account ? <Link to ={'/login'} className='hover:underline cursor-pointer text-pink-800 hover:text-pink-500'>Login</Link></p>
         {/* <Button variant="outline" className="w-full">
